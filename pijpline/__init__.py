@@ -2,6 +2,7 @@
 from typing import Any, Iterable, Mapping
 
 import os
+import uuid
 import yaml
 
 def load(file: str) -> Mapping[str, Any]:
@@ -30,20 +31,21 @@ def split(body: Mapping[str, Any], branch: str) -> Iterable[Mapping[str, Any]]:
 def run(step: Mapping[str, Any], environment: Mapping[str, str]) -> None:
     """Execute a step, providing the env variables to the container."""
     print('# Step:', step['name'])
-    command = '#!/bin/bash\n' + '&&\\\n'.join(step['script'])
+    img = uuid.uuid4()
+    command = '#!/bin/sh\n' + '&&\\\n'.join(step['script'])
     dockerfile = (
-        [f'FROM {step["image"]}', 'COPY . /root', 'RUN rm -rf /root/.git']
+        [f'FROM {step["image"]}', 'COPY . /root']
         + [f'ENV {key}={value}' for key, value in environment.items()]
-        + ['RUN chmod +x entry.sh', 'CMD ./entry.sh']
+        + ['WORKDIR /root', f'RUN chmod +x {img}.sh', f'CMD ./{img}.sh']
     )
-    with open('Dockerfile', 'w') as outfile:
-        outfile.write('\n'.join(dockerfile))
-    with open('entry.sh', 'w') as outfile:
+    with open(f'{img}.sh', 'w') as outfile:
         outfile.write(command)
-    os.system('docker build . -t img')
-    os.remove('Dockerfile')
-    os.remove('entry.sh')
-    os.system('docker run img')
+    with open(f'DF{img}', 'w') as outfile:
+        outfile.write('\n'.join(dockerfile))
+    # TODO: don't use os.system lol
+    os.system(f'docker build . -f DF{img} -t {img} && docker run {img}')
+    os.remove(f'DF{img}')
+    os.remove(f'{img}.sh')
 
 def main(file: str, branch: str, environment: Mapping[str, str]) -> None:
     """Load a pipeline file and execute it using the provided env variables."""

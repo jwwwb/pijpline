@@ -8,7 +8,7 @@ if sys.version_info[:2] < (3, 5):
     raise ValueError('Please use python3.5 and above.')
 
 setup(name="pijpline",
-      version="0.3a1",
+      version="0.5a1",
       scripts=['bin/pijp'],
       install_requires=['pyyaml'],
       packages=['pijpline'])
